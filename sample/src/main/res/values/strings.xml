@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">CustomTabs</string>
+    <string name="default_url">https://android.com</string>
+</resources>
