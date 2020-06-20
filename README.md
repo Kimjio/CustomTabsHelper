@@ -1,5 +1,6 @@
 # CustomTabsHelper
 
+![Screenshot](/.github/img_1.png)
 
 # License
 

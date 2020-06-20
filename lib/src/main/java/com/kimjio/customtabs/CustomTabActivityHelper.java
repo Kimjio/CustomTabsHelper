@@ -40,6 +40,20 @@ public class CustomTabActivityHelper implements ServiceConnectionCallback {
      * @param context          The host context.
      * @param customTabsIntent a CustomTabsIntent to be used if Custom Tabs is available.
      * @param uri              the Uri to be opened.
+     */
+    public static void openCustomTab(
+            final Context context,
+            final CustomTabsIntent customTabsIntent,
+            final Uri uri) {
+        openCustomTab(context, customTabsIntent, uri, new WebViewFallback());
+    }
+
+    /**
+     * Opens the URL on a Custom Tab if possible. Otherwise fallsback to opening it on a WebView.
+     *
+     * @param context          The host context.
+     * @param customTabsIntent a CustomTabsIntent to be used if Custom Tabs is available.
+     * @param uri              the Uri to be opened.
      * @param fallback         a CustomTabFallback to be used if Custom Tabs is not available.
      */
     public static void openCustomTab(
@@ -62,8 +76,8 @@ public class CustomTabActivityHelper implements ServiceConnectionCallback {
                         }
                     });
         else {
-            // If we cant find a package name, it means theres no browser that supports
-            // Chrome Custom Tabs installed. So, we fallback to the webview
+            // If we cant find a package name, it means there's no browser that supports Custom Tabs installed.
+            // So, we fallback to the webview.
             if (packageName == null) {
                 if (fallback != null) {
                     fallback.openUri(context, uri);

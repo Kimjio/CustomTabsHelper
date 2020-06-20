@@ -13,6 +13,9 @@
 // limitations under the License.
 package com.kimjio.customtabs;
 
+import android.app.Activity;
+import android.app.Application;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -21,15 +24,19 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.SimpleAdapter;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.browser.customtabs.CustomTabsService;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +53,8 @@ public class CustomTabsHelper {
     private static String sPackageNameToUse;
 
     private static ArrayList<OnSelectedItemListener> onSelectedItemListeners = new ArrayList<>();
+
+    private static HelperLifecycle lifecycle;
 
     private CustomTabsHelper() {
     }
@@ -66,7 +75,7 @@ public class CustomTabsHelper {
      * @param context {@link Context} to use for accessing {@link PackageManager}.
      * @return The package name recommended to use for connecting to custom tabs related components.
      */
-    public static String getPackageNameToUse(Context context) {
+    public static String getPackageNameToUse(final Context context) {
         if (sPackageNameToUse != null) return sPackageNameToUse;
 
         PackageManager pm = context.getPackageManager();
@@ -140,27 +149,33 @@ public class CustomTabsHelper {
                 }
             });
 
-            new AlertDialog.Builder(context)
-                    .setTitle(R.string.choose_customtabs)
-                    .setAdapter(
-                            simpleAdapter,
-                            new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    sPackageNameToUse = packagesSupportingCustomTabs.get(which);
-                                    if (!onSelectedItemListeners.isEmpty())
-                                        onSelectedItemSelected(sPackageNameToUse);
-                                }
-                            })
-                    .setOnCancelListener(
-                            new DialogInterface.OnCancelListener() {
-                                @Override
-                                public void onCancel(DialogInterface dialog) {
-                                    if (!onSelectedItemListeners.isEmpty())
-                                        onSelectedItemSelected(null);
-                                }
-                            })
-                    .show();
+            ((Application) context.getApplicationContext()).registerActivityLifecycleCallbacks(lifecycle = new HelperLifecycle(
+                    new AlertDialog.Builder(context)
+                            .setTitle(R.string.choose_customtabs)
+                            .setAdapter(
+                                    simpleAdapter,
+                                    new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            sPackageNameToUse = packagesSupportingCustomTabs.get(which);
+                                            ((Application) context.getApplicationContext()).unregisterActivityLifecycleCallbacks(lifecycle);
+                                            lifecycle = null;
+                                            if (!onSelectedItemListeners.isEmpty())
+                                                onSelectedItemSelected(sPackageNameToUse);
+                                        }
+                                    })
+                            .setOnCancelListener(
+                                    new DialogInterface.OnCancelListener() {
+                                        @Override
+                                        public void onCancel(DialogInterface dialog) {
+                                            ((Application) context.getApplicationContext()).unregisterActivityLifecycleCallbacks(lifecycle);
+                                            lifecycle = null;
+                                            if (!onSelectedItemListeners.isEmpty())
+                                                onSelectedItemSelected(null);
+                                        }
+                                    })
+                            .show()));
+
             return WAIT_FOR_SELECT;
         }
         return sPackageNameToUse;
@@ -209,5 +224,45 @@ public class CustomTabsHelper {
 
     public interface OnSelectedItemListener {
         void onSelected(String pkg);
+    }
+
+    private static class HelperLifecycle implements Application.ActivityLifecycleCallbacks {
+
+        private WeakReference<Dialog> dialog;
+
+        public HelperLifecycle(Dialog dialog) {
+            this.dialog = new WeakReference<>(dialog);
+        }
+
+        @Override
+        public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
+        }
+
+        @Override
+        public void onActivityStarted(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivityResumed(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivityPaused(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivityStopped(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle outState) {
+        }
+
+        @Override
+        public void onActivityDestroyed(@NonNull Activity activity) {
+            Dialog dialog;
+            if ((dialog = this.dialog.get()) != null)
+                dialog.cancel();
+        }
     }
 }
